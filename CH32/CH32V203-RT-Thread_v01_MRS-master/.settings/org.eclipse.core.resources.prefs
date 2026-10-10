@@ -1,0 +1,4 @@
+eclipse.preferences.version=1
+encoding//Core/core_riscv.h=UTF-8
+encoding//Peripheral/inc/ch32v20x.h=UTF-8
+encoding//drivers/drv_can.c=UTF-8

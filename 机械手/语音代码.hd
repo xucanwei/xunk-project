@@ -1,0 +1,132 @@
+#include "asr.h"
+extern "C"{ void * __dso_handle = 0 ;}
+#include "setup.h"
+#include "HardwareSerial.h"
+#include "myLib/asr_event.h"
+
+//{speak:小蝶-清新女声,vol:10,speed:10,platform:haohaodada}
+
+// 声明天问 SDK 底层标准的直接播放语音资源 ID 函数，使用 C 链接防名字粉碎
+extern "C" uint32_t prompt_play_by_voice_id(uint16_t voice_id, play_done_callback_t play_done_callback, bool preemptive);
+
+uint32_t snid;
+void ASR_CODE();
+
+//{playid:10001,voice:欢迎使用智能语音助手，请用 你好手掌 唤醒我。}
+//{playid:10002,voice:}
+//{playid:10010,voice:请说出想体验的模式。}
+//{playid:10011,voice:已进入跟随模式。}
+//{playid:10012,voice:已进入模仿模式。}
+//{playid:10013,voice:已进入猜拳模式。}
+//{playid:10014,voice:请把手掌放到摄像头前。}
+//{playid:10015,voice:我识别到了你的手掌。}
+//{playid:10016,voice:石头，剪刀，布。}
+//{playid:10017,voice:你赢了。}
+//{playid:10018,voice:你输了。}
+//{playid:10019,voice:做对了。}
+//{playid:10020,voice:没有识别到，请再试一次。}
+//{playid:10021,voice:恭喜挑战成功。}
+//{playid:10022,voice:挑战失败，再接再厉。}
+//{playid:10023,voice:是平局喔。}
+//{playid:10024,voice:}
+
+/*
+ * 串口解析任务：解析来自 GD32 的 PLAY:100xx / PLAY:xx / PAY:xx 指令并直接播报对应语音资源
+ */
+void read_serial_task(void *pvParameters) {
+  String rx_line = "";
+  while (1) {
+    while (Serial1.available() > 0) {
+      char c = Serial1.read();
+      if (c == '\n') {
+        // 严格以 \n 换行符作为单条指令的唯一结束判定，避免双重触发
+        if (rx_line.length() > 0) {
+          if (rx_line.startsWith("PLAY:") || rx_line.startsWith("PAY:")) {
+            int offset = rx_line.startsWith("PLAY:") ? 5 : 4;
+            int voice_index = rx_line.substring(offset).toInt();
+            uint16_t target_playid = 0;
+            
+            // 兼容两位数ID（如 14）和五位数ID（如 10014）转换成标准的 100xx playid（最高支持到 25/10025）
+            if (voice_index >= 10 && voice_index <= 25) {
+              target_playid = 10000 + voice_index;
+            } else if (voice_index >= 10010 && voice_index <= 10025) {
+              target_playid = (uint16_t)voice_index;
+            }
+            
+            if (target_playid != 0) {
+              enter_wakeup(5000); // 唤醒设备
+              delay(100);
+              // 直接调用底层 prompt_play_by_voice_id 播放指定的语音资源，绝不触发重播
+              prompt_play_by_voice_id(target_playid, play_end_callback, false);
+            }
+          }
+          rx_line = ""; // 成功解析后重置缓冲区
+        }
+      } else if (c != '\r') {
+        // 过滤并丢弃所有的 \r 回车符，仅累加普通字符
+        rx_line += c;
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
+
+/*
+ * 天问 ASR Pro 语音识别核心回调程序
+ */
+void ASR_CODE(){
+  // 识别成功后，重置并保持唤醒状态 10 秒（10000 毫秒）
+  set_state_enter_wakeup(10000);
+  
+  // 根据识别成功的 ASR ID 发送相应的串口指令给 GD32 (GD32 随后转发给 K230)
+  switch (snid) {
+    case 1:
+      // 跟随模式
+      Serial1.println("CMD:FOLLOW");
+      break;
+    case 2:
+      // 模仿模式
+      Serial1.println("CMD:MIMIC");
+      break;
+    case 3:
+      // 猜拳模式
+      Serial1.println("CMD:RPS");
+      break;
+    case 4:
+      // 返回主菜单
+      Serial1.println("CMD:MENU");
+      break;
+    case 5:
+      // 重新开始游戏
+      Serial1.println("CMD:RESTART");
+      break;
+  }
+}
+
+void hardware_init(){
+  // 系统音量范围为 1-7，此处设为最大音量 7
+  vol_set(1);
+  
+  // 将 ASR Pro 的引脚 2 (TX), 引脚 3 (RX) 配置为第二路硬件串口 Serial1
+  setPinFun(2, FORTH_FUNCTION);  // PA2 -> Serial1_TX
+  setPinFun(3, FORTH_FUNCTION);  // PA3 -> Serial1_RX
+  Serial1.begin(115200);         // 匹配 GD32 的 APP_HOST_BAUDRATE 115200
+  
+  // 创建后台串口接收解析任务
+  xTaskCreate(read_serial_task, "read_serial_task", 1024, NULL, 4, NULL);
+  
+  vTaskDelete(NULL);
+}
+
+void setup()
+{
+  // ASR Pro 词条自动声明编译器格式（天问Block图形编译引擎通过读取以下格式的注释来自动打包词典）
+  // 仅唤醒词保留硬件直接回复以确保瞬时反馈，其余指令均由 K230 脑控统一触发，防止重复播报
+  //{ID:0,keyword:"唤醒词",ASR:"你好手掌",ASRTO:"我在，有什么可以帮到你"}
+  //{ID:1,keyword:"命令词",ASR:"跟随模式",ASRTO:""}
+  //{ID:2,keyword:"命令词",ASR:"模仿模式",ASRTO:""}
+  //{ID:3,keyword:"命令词",ASR:"猜拳模式",ASRTO:""}
+  //{ID:4,keyword:"命令词",ASR:"返回菜单",ASRTO:""}
+  //{ID:5,keyword:"命令词",ASR:"重新开始",ASRTO:""}
+}
+/** edittype="asr_procode" */

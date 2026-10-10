@@ -1,0 +1,21 @@
+################################################################################
+# MRS Version: 1.9.0
+# 自动生成的文件。不要编辑！
+################################################################################
+
+# Add inputs and outputs from these tool invocations to the build variables 
+C_SRCS += \
+../rtthread/components/drivers/misc/pin.c 
+
+OBJS += \
+./rtthread/components/drivers/misc/pin.o 
+
+C_DEPS += \
+./rtthread/components/drivers/misc/pin.d 
+
+
+# Each subdirectory must supply rules for building sources it contributes
+rtthread/components/drivers/misc/%.o: ../rtthread/components/drivers/misc/%.c
+	@	@	riscv-none-embed-gcc -march=rv32imacxw -mabi=ilp32 -msmall-data-limit=8 -msave-restore -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized  -g -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\Debug" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\Core" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\User" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\Peripheral\inc" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\drivers" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread\include" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread\include\libc" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread\libcpu\risc-v" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread\libcpu\risc-v\common" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread\src" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread\components\drivers\include" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread\components\drivers\misc" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread\components\drivers\serial" -I"C:\MRS_DATA\workspace\CH32V203-RT-Thread_v01\rtthread\components\finsh" -std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
+	@	@
+

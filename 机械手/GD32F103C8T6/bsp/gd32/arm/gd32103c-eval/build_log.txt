@@ -1,0 +1,8 @@
+*** Using Compiler 'V5.06 update 5 (build 528)', folder: 'F:\Keil_v5\ARM\ARMCC\Bin'
+Build target 'rt-thread'
+compiling motor_encoder.c...
+linking...
+Program Size: Code=46804 RO-data=8296 RW-data=672 ZI-data=3008  
+After Build - User command #1: fromelf --bin .\build\rtthread.axf --output rtthread.bin
+".\build\rtthread.axf" - 0 Error(s), 0 Warning(s).
+Build Time Elapsed:  00:00:02
