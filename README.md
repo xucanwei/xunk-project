@@ -30,7 +30,4 @@
 
 ### 7.接线
 
-![image-20261010224302504](C:\Users\22841\Desktop\company\K230\人脸眼球\README.assets\image-20261010224302504.png)
-
-
-
+![image-20261010224915269](image-20261010224915269.png)
