@@ -28,7 +28,9 @@
 
 [5寸便携显示器迷你小型HDMI高清亮度调节触摸免驱轻薄金属外壳屏-淘宝网](https://item.taobao.com/item.htm?app=chrome&bxsign=scdS9iCdaNUKLPxnvh1mx-TUHgi1zmb1QCRckIwQeteTWPTIoHx89Ag5j_HWVDa2GHLFI-bWC8ej41C22wOMoY0gg7vFx9eozDPTrsaSU9s12PBBlEyIMajQ4tauUmrXEmO&cpp=1&h5_spm=a-tb-item.b-tb-item&id=899704323504&share_crt_v=1&shareurl=true&short_name=h.8ByMuDRah5WowLi&skuId=5922421394669&sp_tk=YzN4YVRvcElZM1M%3D&spm=a2159r.13376460.0.0&tbSocialPopKey=shareItem&tk=c3xaTopIY3S&un=0c830e123ce6c9e3a8fb54add16a2d54&un_site=0&ut_sk=1.ZnU9C1gadkUDAE4%2B98wnhS6c_21380790_1790932856814.TaoPassword-Weixin.1&wxsign=tbwLtRIGT9v75TnEb3MkGDkm8GFu56dHuFPfsQ5jqdnVIDC-LksQjNfo_AQSqoLei2qzorosPnVTzRaJq8Ru0cyPEg6AvqD6CQbHH0E5R0pOEQOwF3VeoPUHFLERlZAc6b9&x-ssr=true)
 
-### 7.外置板PCB
+### 7.接线
+
+![image-20261010224302504](C:\Users\22841\Desktop\company\K230\人脸眼球\README.assets\image-20261010224302504.png)
 
 
 
