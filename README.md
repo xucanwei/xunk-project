@@ -16,6 +16,10 @@
   链接: https://pan.baidu.com/s/1I84vXcTa45rwmhnuPM_U7g?pwd=6ffb 提取码: 6ffb 
   --来自百度网盘超级会员v6的分享
 
+
+
+PS：烧录的不管是MIPI，还是HDMI镜像，都需要把当前目录下的data文件夹添加至SDcar中才能搜索到背景图片
+
 ### 4、K230购买链接
 
   https://detail.tmall.com/item.htm?ali_refid=a3_430673_1006%3A1425810054%3AH%3AQ0rzqSVyveilLsyz9JR3XbCEDAnLWkpe%3A9f5e6e65941c0a06a601b576479cebf0&ali_trackid=318_9f5e6e65941c0a06a601b576479cebf0&id=828785685305&loginBonus=1&mi_id=0000o9JLO59RHZ5wE-m2nTMJvwO94DaiTnp9VWy-mT3PC5c&mm_sceneid=0_0_1706610063_0_0&priceTId=2150485017916421356228926e10c1&skuId=5557635132923&spm=a21n57.sem.item.7&utparam=%7B%22aplus_abtest%22%3A%22fb6b2c7142666e724d8e3177da6bee77%22%7D&xxc=ad_ztc
@@ -32,5 +36,4 @@
 
 ![image-20261010224915269](image-20261010224915269.png)
 
-![image-20261010230329464](image-20261010230329464.png)
-
+![image-20261011194319804](image-20261011194319804.png)

@@ -35,8 +35,12 @@ static void k230_rx_task_entry(void *parameter)
                     servo_parse_k230_frame(g_k230_rx_buf, g_k230_rx_idx);
                     g_k230_rx_idx = 0;
                 } else if (g_k230_rx_idx >= 6 && g_k230_rx_buf[2] == 0x20) {
-                    /* K230 发送给 ASR PRO 的语音播放包 (0xAA 0x5A 0x20 0x01 <voice_id> <cs>)，直接透传转发给 ASR PRO */
-                    asr_uart_send_data(g_k230_rx_buf, g_k230_rx_idx);
+                    /* K230 发送给 ASR PRO 的语音播放包，转换为 ASR PRO 标准 ASCII 协议 PLAY:100xx\r\n */
+                    uint8_t voice_id = g_k230_rx_buf[4];
+                    char play_cmd[24];
+                    rt_snprintf(play_cmd, sizeof(play_cmd), "PLAY:%d\r\n", 10000 + voice_id);
+                    rt_kprintf("[K230 CMD] Play voice ID: %d -> Sending to ASR: %s", voice_id, play_cmd);
+                    asr_uart_send_data((const uint8_t *)play_cmd, strlen(play_cmd));
                     g_k230_rx_idx = 0;
                 }
             } else {
@@ -58,6 +62,7 @@ static void asr_rx_task_entry(void *parameter)
             if (ch == '\n' || ch == '\r') {
                 if (g_asr_rx_idx > 0) {
                     g_asr_rx_buf[g_asr_rx_idx] = '\0';
+                    rt_kprintf("[ASR RXD] Line from ASR: %s\n", g_asr_rx_buf);
                     /* 增加换行符并转发给 K230 */
                     k230_uart_send_string((const char *)g_asr_rx_buf);
                     k230_uart_send_string("\n");

@@ -104,13 +104,13 @@ BLINK_INTERVAL_MIN = 3.0       # 眨眼最小间隔时间
 BLINK_INTERVAL_MAX = 8.0       # 眨眼最大间隔时间
 # ==============================================================================
 
-# 串口与控制配置 (与机械手 UART2 一致)
-FOLLOW_UART_PORT = 2
+# 串口与控制配置 (已切换为串口 3: Pin 28 TX, Pin 29 RX)
+FOLLOW_UART_PORT = 3
 FOLLOW_UART_BAUDRATE = 115200
 FOLLOW_UART_SEND_INTERVAL_MS = 8
 FOLLOW_UART_MIN_DELTA_DEG = 1
-FOLLOW_UART_TX_PIN = 44
-FOLLOW_UART_RX_PIN = 45
+FOLLOW_UART_TX_PIN = 28
+FOLLOW_UART_RX_PIN = 29
 
 # 触摸板互斥锁
 touch_lock = _thread.allocate_lock()
@@ -215,7 +215,7 @@ class BlinkController:
 
 # 仿生眼球串口控制器
 class EyeMechanismController:
-    def __init__(self, enable=True, port=2, baudrate=115200, device_id=0x5A, cmd_set_angles=0x11, send_interval_ms=8, min_delta_deg=1, tx_pin=44, rx_pin=45):
+    def __init__(self, enable=True, port=3, baudrate=115200, device_id=0x5A, cmd_set_angles=0x11, send_interval_ms=8, min_delta_deg=1, tx_pin=28, rx_pin=29):
         self.enable = enable
         self.port = port
         self.baudrate = baudrate
@@ -268,6 +268,9 @@ class EyeMechanismController:
             resolved_uart_id = self._resolve_uart_id()
             self.uart = UART(resolved_uart_id, self.baudrate)
             self.ready = True
+            print("[UART INIT] Opened UART%d (TX=Pin%d, RX=Pin%d, Baud=%d) successfully." % (
+                self.port, self.tx_pin, self.rx_pin, self.baudrate
+            ))
             return True
         except Exception as e:
             print("[WARN] Failed to open UART:", e)
@@ -372,6 +375,9 @@ class EyeMechanismController:
 
         try:
             self.uart.write(frame)
+            # 同时发送一次 ASR Pro 文本指令 PLAY:100xx\r\n（双重保障）
+            ascii_play_cmd = "PLAY:%d\r\n" % (10000 + voice_id)
+            self.uart.write(ascii_play_cmd.encode('utf-8'))
             print("[VOICE] Sent play command for voice ID: %d" % voice_id)
         except Exception as e:
             print("[WARN] Failed to send play voice command:", e)
@@ -380,18 +386,20 @@ class EyeMechanismController:
         if not self._ensure_uart():
             return None
 
-        # 1. 只要 UART 串口硬件 FIFO 有新数据，立刻追加解码到 rx_buffer
-        if self.uart.any():
-            try:
-                data = self.uart.read()
-                if data:
-                    print("[UART RXD Raw Bytes]:", data)
-                    try:
-                        decoded_str = data.decode('utf-8', 'ignore')
-                    except:
-                        decoded_str = str(data)
+        # 1. 检查 UART 硬件 FIFO 并实时读取
+        try:
+            num = self.uart.any()
+        except Exception:
+            num = 0
 
-                    self.rx_buffer += decoded_str
+        if num:
+            try:
+                data = self.uart.read(num) if num > 0 else self.uart.read()
+                if data:
+                    # 仅保留 ASCII 可打印字符和回车换行，过滤二进制报文干扰
+                    for b in data:
+                        if 32 <= b <= 126 or b in (10, 13):
+                            self.rx_buffer += chr(b)
                     self.rx_buffer = self.rx_buffer.replace('\r', '\n')
             except Exception as e:
                 print("[WARN] UART read failed:", e)
@@ -399,20 +407,12 @@ class EyeMechanismController:
         if not self.rx_buffer:
             return None
 
-        # 2. 防溢出保护：若缓冲区积攒字符过多（超过256字符）且无法匹配，自动清空
-        if len(self.rx_buffer) > 256:
-            self.rx_buffer = ""
-            return None
-
-        # 3. 匹配完整 CMD 指令（严禁在未匹配到完整指令时误清空缓冲区）
+        # 2. 匹配完整 CMD 指令
         target_action = None
         if "CMD:" in self.rx_buffer:
             rx_upper = self.rx_buffer.upper()
 
-            if any(k in rx_upper for k in ("CMD:WAKE", "CMD: WAKE", "CMD:HI", "CMD: HI", "CMD:HELLO", "CMD: HELLO", "CMD:NIHAO", "CMD: NIHAO")):
-                target_action = ("wake", None)
-                self.last_wake_ms = time.ticks_ms()
-            elif "CMD:FOLLOW" in rx_upper or "CMD: FOLLOW" in rx_upper:
+            if "CMD:FOLLOW" in rx_upper or "CMD: FOLLOW" in rx_upper:
                 target_action = ("mode", MODE_FOLLOW)
             elif "CMD:MIMIC" in rx_upper or "CMD: MIMIC" in rx_upper:
                 target_action = ("mode", MODE_STARING)
@@ -422,13 +422,22 @@ class EyeMechanismController:
                 target_action = ("menu", None)
             elif "CMD:RESTART" in rx_upper or "CMD: RESTART" in rx_upper:
                 target_action = ("restart", None)
+            elif any(k in rx_upper for k in ("CMD:WAKE", "CMD: WAKE", "CMD:HI", "CMD: HI", "CMD:HELLO", "CMD: HELLO", "CMD:NIHAO", "CMD: NIHAO")):
+                target_action = ("wake", None)
+                self.last_wake_ms = time.ticks_ms()
+            elif "CMD:VOL" in rx_upper or "CMD: VOL" in rx_upper:
+                target_action = ("volume", 5)
 
-            # 核心修正：只有在 100% 成功识别出有效指令后才清空缓冲区
             if target_action is not None:
-                print("[UART RXD] Successfully matched command:", target_action)
+                print("[ASR RXD] Matched command:", target_action)
                 self.rx_buffer = ""
+                return target_action
 
-        return target_action
+        # 3. 防溢出保护
+        if len(self.rx_buffer) > 128:
+            self.rx_buffer = self.rx_buffer[-32:]
+
+        return None
 
 
 # 触摸点坐标定义
@@ -1491,6 +1500,8 @@ if __name__ == "__main__":
 
         print("[SYSTEM] Starting YuNet Eye Interactive Game Loop...")
 
+        eye_controller.play_voice(10)
+
         # ARGB888P 颜色元组格式定义 (alpha, red, green, blue)
         COLOR_GREEN = (255, 0, 255, 0)
         COLOR_GREEN_SEMI = (200, 0, 255, 0)
@@ -1529,19 +1540,15 @@ if __name__ == "__main__":
 
                 if action is not None:
                     if action[0] == "wake":
-                        print("[SYSTEM] Wake word '你好大眼' detected! 8-second command priority window active.")
+                        print("[SYSTEM] Wake word detected.")
                         face_missing_voice_played = False
                         face_missing_start_time = time.ticks_ms()
                     elif action[0] == "mode":
                         game.set_mode(action[1])
                         in_menu = False
                         # 播报对应模式进入语音
-                        if action[1] == MODE_FOLLOW:
-                            eye_controller.play_voice(11)
-                        elif action[1] == MODE_STARING:
-                            eye_controller.play_voice(12)
-                        elif action[1] == MODE_GAZE:
-                            eye_controller.play_voice(13)
+                        voice_id_map = {MODE_FOLLOW: 11, MODE_STARING: 12, MODE_GAZE: 13}
+                        eye_controller.play_voice(voice_id_map.get(action[1], 11))
                         # 重置语音状态
                         face_detected_voice_played = False
                         face_missing_voice_played = False
@@ -1560,18 +1567,13 @@ if __name__ == "__main__":
                     elif action[0] == "restart":
                         game.reset()
                         game.set_mode(game.mode)
-                        if game.mode == MODE_FOLLOW:
-                            eye_controller.play_voice(11)
-                        elif game.mode == MODE_STARING:
-                            eye_controller.play_voice(12)
-                        elif game.mode == MODE_GAZE:
-                            eye_controller.play_voice(13)
+                        voice_id_map = {MODE_FOLLOW: 11, MODE_STARING: 12, MODE_GAZE: 13}
+                        eye_controller.play_voice(voice_id_map.get(game.mode, 11))
                         face_detected_voice_played = False
                         face_missing_voice_played = False
                         face_missing_start_time = 0
                         last_has_face = False
                     elif action[0] == "volume":
-                        # 发送音量指令：音量 x 对应虚拟语音 ID: 90 + x (ASR Pro 解析 91~97 进行 vol_set 设定)
                         vol_voice_id = 90 + action[1]
                         eye_controller.play_voice(vol_voice_id)
 
